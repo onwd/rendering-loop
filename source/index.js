@@ -1,17 +1,47 @@
+const NOOP = () => {};
+const windowOrRoot = typeof window === 'object' ? window : root;
+const cancelAnimationFrame = windowOrRoot.cancelAnimationFrame || clearTimeout;
+
 class RenderingLoop {
   constructor(params) {
-    this.fps = params.fps;
-    this.simulationStep = 1000 / this.fps;
+    params = params || {};
+
+    this.begin = params.begin || NOOP;
+    this.update = params.update || NOOP;
+    this.render = params.render || NOOP;
+    this.end = params.end || NOOP;
+
+    this.fps = params.fps || 60;
+    this.simulationTimestep = 1000 / this.fps;
     this.frameDelta = 0;
     this.lastFrameTimeMs = 0;
+    this.fpsAlpha = 0.9;
+    this.fpsUpdateInterval = 1000;
     this.lastFpsUpdate = 0;
-    this.framesThisSecond = 0;
+    this.framesSinceLastFpsUpdate = 0;
     this.numUpdateSteps = 0;
     this.minFrameDelay = 0;
     this.running = false;
     this.started = false;
     this.panic = false;
     this.rafHandle = null;
+
+    this.requestAnimationFrame = windowOrRoot.requestAnimationFrame || (() => {
+      const lastTimestamp = Date.now();
+      let now;
+      let timeout;
+
+      return (callback) => {
+        now = Date.now();
+
+        timeout = Math.max(0, this.simulationTimestep - (now - lastTimestamp));
+        lastTimestamp = now + timeout;
+
+        return setTimeout(() => {
+          callback(now + timeout);
+        }, timeout);
+      };
+    })();
 
     this.animate = this.animate.bind(this);
   }
@@ -21,7 +51,7 @@ class RenderingLoop {
   }
 
   set maxAllowedFps(fps) {
-    if (fps == null) {
+    if (typeof fps === 'undefined') {
       fps = Infinity;
     }
 
@@ -32,64 +62,65 @@ class RenderingLoop {
     }
   }
 
-  begin(time, delta) {}
-  end(fps, panic) {}
-  update(delta) {}
-  render(interpolation) {}
-
   resetFrameDelta() {
-    const frameDelta = this.frameDelta;
+    const oldFrameDelta = this.frameDelta;
     this.frameDelta = 0;
-    return frameDelta;
+    return oldFrameDelta;
   }
 
   start() {
-    if (this.started) {
-      return;
+    if (!started) {
+      this.started = true;
+
+      this.rafHandle = this.requestAnimationFrame((timestamp) => {
+        this.draw(1);
+
+        this.running = true;
+        this.lastFrameTimeMs = timestamp;
+        this.lastFpsUpdate = timestamp;
+        this.framesSinceLastFpsUpdate = 0;
+        this.rafHandle = this.requestAnimationFrame(this.animate);
+      });
     }
 
-    this.started = true;
-    this.rafHandle = requestAnimationFrame((timestamp) => {
-      this.render(1);
-      this.running = true;
-      this.lastFrameTimeMs = timestamp;
-      this.lastFpsUpdate = timestamp;
-      this.framesThisSecond = 0;
-      this.rafHandle = requestAnimationFrame(this.animate);
-    });
+    return this;
   }
 
   stop() {
     this.running = false;
     this.started = false;
     cancelAnimationFrame(this.rafHandle);
+
+    return this;
   }
 
-  animate(time) {
-    this.rafHandle = requestAnimationFrame(this.animate);
+  animate(timestamp) {
+    this.rafHandle = this.requestAnimationFrame(this.animate);
 
-    if (time < this.lastFrameTimeMs + this.minFrameDelay) {
+    if (timestamp < this.lastFrameTimeMs + this.minFrameDelay) {
       return;
     }
 
-    this.frameDelta += time - this.lastFrameTimeMs;
-    this.lastFrameTimeMs = time;
+    this.frameDelta += timestamp - this.lastFrameTimeMs;
+    this.lastFrameTimeMs = timestamp;
 
-    this.begin(time, this.frameDelta);
+    this.begin(timestamp, this.frameDelta);
 
-    if (time > this.lastFpsUpdate + 1000) {
-      this.fps = 0.25 * this.framesThisSecond + 0.75 * this.fps;
-      this.lastFpsUpdate = time;
-      this.framesThisSecond = 0;
+    if (timestamp > this.lastFpsUpdate + this.fpsUpdateInterval) {
+      this.fps = this.fpsAlpha * this.framesSinceLastFpsUpdate * 1000 / (timestamp - this.lastFpsUpdate) +
+                 (1 - this.fpsAlpha) * this.fps;
+
+      this.lastFpsUpdate = timestamp;
+      this.framesSinceLastFpsUpdate = 0;
     }
 
-    ++this.framesThisSecond;
+    this.framesSinceLastFpsUpdate++;
 
     this.numUpdateSteps = 0;
 
-    while (this.frameDelta >= this.simulationStep) {
-      this.update(this.simulationStep);
-      this.frameDelta -= this.simulationStep;
+    while (this.frameDelta >= this.simulationTimestep) {
+      this.update(this.simulationTimestep);
+      this.frameDelta -= this.simulationTimestep;
 
       if (++this.numUpdateSteps >= 240) {
         this.panic = true;
@@ -97,7 +128,7 @@ class RenderingLoop {
       }
     }
 
-    this.render(this.frameDelta / this.simulationStep);
+    this.render(this.frameDelta / this.simulationTimestep);
 
     this.end(this.fps, this.panic);
 
