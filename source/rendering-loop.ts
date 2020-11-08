@@ -1,37 +1,36 @@
-const NOOP = () => {};
-const cancelAnimationFrame = window.cancelAnimationFrame || clearTimeout;
+const noop = () => {};
+const cancelAnimationFrame = window.cancelAnimationFrame ?? clearTimeout;
 
 export class RenderingLoop {
-  public begin: any;
-  public update: any;
-  public render: any;
-  public draw: any;
-  public end: any;
-  public fps: any;
-  public simulationTimestep: any;
-  public frameDelta: any;
-  public lastFrameTimeMs: any;
-  public fpsAlpha: any;
-  public fpsUpdateInterval: any;
-  public lastFpsUpdate: any;
-  public framesSinceLastFpsUpdate: any;
-  public numUpdateSteps: any;
-  public minFrameDelay: any;
-  public running: any;
-  public started: any;
-  public panic: any;
-  public rafHandle: any;
-  public requestAnimationFrame: any;
+  public begin: Function;
+  public update: Function;
+  public render: Function;
+  public draw: Function;
+  public end: Function;
+  public fps: number;
+  public running: boolean;
 
-  constructor(params) {
-    params = params || {};
+  private simulationTimestep: number;
+  private frameDelta: number;
+  private lastFrameTimeMs: number;
+  private fpsAlpha: number;
+  private fpsUpdateInterval: number;
+  private lastFpsUpdate: number;
+  private framesSinceLastFpsUpdate: number;
+  private numUpdateSteps: number;
+  private minFrameDelay: number;
+  private started: boolean;
+  private panic: boolean;
+  private rafHandle: number;
+  private requestAnimationFrame: Function;
 
-    this.begin = params.begin || NOOP;
-    this.update = params.update || NOOP;
-    this.render = params.render || NOOP;
-    this.end = params.end || NOOP;
+  constructor(renderingLoop: Partial<RenderingLoop>) {
+    this.begin = renderingLoop.begin ?? noop;
+    this.update = renderingLoop.update ?? noop;
+    this.render = renderingLoop.render ?? noop;
+    this.end = renderingLoop.end ?? noop;
 
-    this.fps = params.fps || 60;
+    this.fps = renderingLoop.fps ?? 60;
     this.simulationTimestep = 1000 / this.fps;
     this.frameDelta = 0;
     this.lastFrameTimeMs = 0;
@@ -46,7 +45,7 @@ export class RenderingLoop {
     this.panic = false;
     this.rafHandle = null;
 
-    this.requestAnimationFrame = window.requestAnimationFrame || (() => {
+    this.requestAnimationFrame = window.requestAnimationFrame ?? (() => {
       let lastTimestamp = Date.now();
       let now;
       let timeout;
