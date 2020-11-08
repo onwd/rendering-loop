@@ -1,8 +1,28 @@
 const NOOP = () => {};
-const windowOrRoot = typeof window === 'object' ? window : root;
-const cancelAnimationFrame = windowOrRoot.cancelAnimationFrame || clearTimeout;
+const cancelAnimationFrame = window.cancelAnimationFrame || clearTimeout;
 
-class RenderingLoop {
+export class RenderingLoop {
+  public begin: any;
+  public update: any;
+  public render: any;
+  public draw: any;
+  public end: any;
+  public fps: any;
+  public simulationTimestep: any;
+  public frameDelta: any;
+  public lastFrameTimeMs: any;
+  public fpsAlpha: any;
+  public fpsUpdateInterval: any;
+  public lastFpsUpdate: any;
+  public framesSinceLastFpsUpdate: any;
+  public numUpdateSteps: any;
+  public minFrameDelay: any;
+  public running: any;
+  public started: any;
+  public panic: any;
+  public rafHandle: any;
+  public requestAnimationFrame: any;
+
   constructor(params) {
     params = params || {};
 
@@ -26,8 +46,8 @@ class RenderingLoop {
     this.panic = false;
     this.rafHandle = null;
 
-    this.requestAnimationFrame = windowOrRoot.requestAnimationFrame || (() => {
-      const lastTimestamp = Date.now();
+    this.requestAnimationFrame = window.requestAnimationFrame || (() => {
+      let lastTimestamp = Date.now();
       let now;
       let timeout;
 
@@ -69,7 +89,7 @@ class RenderingLoop {
   }
 
   start() {
-    if (!started) {
+    if (!this.started) {
       this.started = true;
 
       this.rafHandle = this.requestAnimationFrame((timestamp) => {
@@ -135,5 +155,3 @@ class RenderingLoop {
     this.panic = false;
   }
 }
-
-module.exports = RenderingLoop;
