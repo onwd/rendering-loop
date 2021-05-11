@@ -1,1 +1,1 @@
-export { RenderingLoop } from './rendering-loop';
+export * from './rendering-loop';
